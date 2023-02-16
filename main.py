@@ -13,7 +13,7 @@ class App(tk.Tk):
         self.mainpart_name = None
 
         self.title('pbx PLM tools v0.1')
-        self.geometry('300x300')
+        # self.geometry('300x300')
 
         self.button_load_bom = ttk.Button(self, text="Load BOM", command=self.load_bom)
         self.button_load_bom.pack(fill="x", padx='10', pady='5')
