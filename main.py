@@ -1,8 +1,11 @@
 import tkinter as tk
 from tkinter import ttk, filedialog
+
+import numpy as np
 import pandas as pd
 from datetime import datetime
 import os
+from math import isnan
 
 
 class App(tk.Tk):
@@ -11,6 +14,9 @@ class App(tk.Tk):
         self.sum_bom = None
         self.mainpart_ID = None
         self.mainpart_name = None
+        self.root_path = os.getcwd()
+        self.bom_loaded = False
+
 
         self.title('pbx PLM tools v0.1')
         # self.geometry('300x300')
@@ -18,7 +24,7 @@ class App(tk.Tk):
         self.button_load_bom = ttk.Button(self, text="Load BOM", command=self.load_bom)
         self.button_load_bom.pack(fill="x", padx='10', pady='5')
 
-        self.button_load_prices = ttk.Button(self, text="Add costs to summary BOM", command=self.load_prices)
+        self.button_load_prices = ttk.Button(self, text="Load part prices", command=self.load_prices)
         self.button_load_prices.pack(fill="x", padx='10', pady='5')
 
         self.button_export_summarybom = ttk.Button(self, text="Export summary BOM", command=self.export_summarybom)
@@ -30,6 +36,9 @@ class App(tk.Tk):
         self.button_write_assembly_bom = ttk.Button(self, text="Write assembly partial BOMs", command=self.write_assembly_bom)
         self.button_write_assembly_bom.pack(fill="x", padx='10', pady='5')
 
+        self.button_open_rename_dialog = ttk.Button(self, text='Rename drawings', command=self.rename_files)
+        self.button_open_rename_dialog.pack(fill='x', padx='10', pady='5')
+
     def load_bom(self):
         bom_path = filedialog.askopenfile()
         self.bom = pd.read_excel(bom_path.name)
@@ -39,7 +48,15 @@ class App(tk.Tk):
         mainpart = self.bom[self.bom['ID'] == "1"]
         self.mainpart_name = mainpart['Item Name'][0]
         self.mainpart_ID = mainpart['Item Number'][0]
-        self.mainpart_revision = ''.join([mainpart['Major Revision'][0], '_', mainpart['Minor Revision'][0]])
+        major_revision = mainpart['Major Revision'][0]
+        minor_revision = mainpart['Minor Revision'][0]
+        if np.issubdtype(minor_revision, np.integer):
+            minor_revision = str(minor_revision).zfill(2)
+        self.mainpart_revision = '_'.join([major_revision, minor_revision])
+
+        # replace '-' with np.nan in DD-drawing-number and DD-ID-Number
+        self.bom['DD-drawing-number'].replace('-', np.nan, inplace=True)
+        self.bom['DD-ID-Number'].replace('-', np.nan, inplace=True)
 
         print('BOM loaded!')
 
@@ -134,22 +151,56 @@ class App(tk.Tk):
 
         :return:
         '''
+        if not isinstance(self.sum_bom, pd.DataFrame):
+            print('Failed! No BOM loaded yet.')
+            return
         exported_params = ['Item Number', 'Major Revision', 'Minor Revision', 'Item Name', 'Item Description',
                            'Quantity', 'Type', 'DD-drawing-number', 'DD-ID-Number', 'Old-PBX-ID-Number', 'PBX-drawing number']
         today = datetime.now().strftime('%y%m%d_%H%M%S')
         folder_name = '-'.join(['AssemblyBOMs', str(self.mainpart_ID), self.mainpart_name, self.mainpart_revision, 'createdAt', today])
-        root_path = os.getcwd()
-        folder_path = os.path.join(root_path, folder_name)
+        folder_path = os.path.join(self.root_path, folder_name)
         os.mkdir(folder_path)
         grouped_bom = self.bom.groupby('Parent ID')
         for k, v in grouped_bom:
             parent_part = self.bom[self.bom['ID']==k]
-            filename = '-'.join(['AssemblyBOM', str(parent_part['Item Number'].values[0]), parent_part['Item Name'].values[0], parent_part['Major Revision'].values[0], parent_part['Minor Revision'].values[0]])+'.xlsx'
+            dd_drawing_number = parent_part['DD-drawing-number'].values[0]
+            if dd_drawing_number != dd_drawing_number:
+                filename = '-'.join(['AssemblyBOM', str(parent_part['Item Number'].values[0]), parent_part['Item Name'].values[0], parent_part['Major Revision'].values[0], parent_part['Minor Revision'].values[0]])+'.xlsx'
+            else:
+                filename = str(parent_part['DD-drawing-number'].values[0])+'.xlsx'
             export_df = v[exported_params]
             filepath = os.path.join(folder_path, filename)
             export_df.to_excel(filepath)
 
         print('Assembly BOMs successfully written in folder: {}'.format(folder_path))
+
+    def rename_files(self):
+        if not isinstance(self.sum_bom, pd.DataFrame):
+            print('Failed! No BOM loaded yet.')
+            return
+        folder = os.path.join(self.root_path, 'drawings')
+        file_list = os.listdir(folder)
+
+        for file in file_list:
+            id = int(file.split('-')[0])
+            filetype = file.split('.')[-1]
+            if not id in self.bom['Item Number']:
+                continue
+            part = self.bom[self.bom['Item Number'] == id]
+            dd_drawing_number = part['DD-drawing-number'].values[0]
+            dd_id_number = part['DD-ID-Number'].values[0]
+
+            if isinstance(dd_drawing_number, str):
+                filename = '.'.join([str(dd_drawing_number), filetype])
+            elif isinstance(dd_id_number, str):
+                filename = '.'.join([str(dd_id_number), filetype])
+            else:
+                continue
+
+            old_filename = os.path.join(folder, file)
+            new_filename = os.path.join(folder, filename)
+            os.rename(old_filename, new_filename)
+
 
 if __name__ == '__main__':
     app = App()
