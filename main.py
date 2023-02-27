@@ -184,7 +184,7 @@ class App(tk.Tk):
         for file in file_list:
             id = int(file.split('-')[0])
             filetype = file.split('.')[-1]
-            if not id in self.bom['Item Number']:
+            if not id in self.bom['Item Number'].values:
                 continue
             part = self.bom[self.bom['Item Number'] == id]
             dd_drawing_number = part['DD-drawing-number'].values[0]
