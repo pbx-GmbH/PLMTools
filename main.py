@@ -199,9 +199,12 @@ class App(tk.Tk):
 
             old_filename = os.path.join(folder, file)
             new_filename = os.path.join(folder, filename)
+            if os.path.isfile(new_filename):
+                print('Cannot rename {}, because {} already exists. Maybe the DD drawing number is used twice.'.format(id, new_filename))
+                continue
             os.rename(old_filename, new_filename)
 
-
+        print('File renaming completed.')
 if __name__ == '__main__':
     app = App()
     app.mainloop()
