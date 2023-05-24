@@ -41,7 +41,7 @@ class App(tk.Tk):
 
     def load_bom(self):
         bom_path = filedialog.askopenfile()
-        self.bom = pd.read_excel(bom_path.name)
+        self.bom = pd.read_excel(bom_path.name, dtype={'ID': str, 'Minor Revision': str})
         self.bom.reset_index(inplace=True)
 
         # retract the main part and get info from it
@@ -50,8 +50,7 @@ class App(tk.Tk):
         self.mainpart_ID = mainpart['Item Number'][0]
         major_revision = mainpart['Major Revision'][0]
         minor_revision = mainpart['Minor Revision'][0]
-        if np.issubdtype(minor_revision, np.integer):
-            minor_revision = str(minor_revision).zfill(2)
+
         self.mainpart_revision = '_'.join([major_revision, minor_revision])
 
         # replace '-' with np.nan in DD-drawing-number and DD-ID-Number
@@ -155,7 +154,9 @@ class App(tk.Tk):
             print('Failed! No BOM loaded yet.')
             return
         exported_params = ['Item Number', 'Major Revision', 'Minor Revision', 'Item Name', 'Item Description',
-                           'Quantity', 'Type', 'DD-drawing-number', 'DD-ID-Number', 'Old-PBX-ID-Number', 'PBX-drawing number']
+                           'Quantity', 'Type', 'DD-drawing-number', 'DD-ID-Number', 'Old-PBX-ID-Number',
+                           'PBX-drawing number', 'Pre-cut-size(m,m2)']
+
         today = datetime.now().strftime('%y%m%d_%H%M%S')
         folder_name = '-'.join(['AssemblyBOMs', str(self.mainpart_ID), self.mainpart_name, self.mainpart_revision, 'createdAt', today])
         folder_path = os.path.join(self.root_path, folder_name)
