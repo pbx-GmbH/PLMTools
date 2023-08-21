@@ -114,7 +114,7 @@ class App(tk.Tk):
         invoices.sort_values(by='invoice date')
 
         # generate the list of prices
-        prices_group = invoices.groupby('Item ID')['price invoice', 'Supplier']
+        prices_group = invoices.groupby('Item ID')[['price invoice', 'Supplier']]
         prices = prices_group.last()
         # prices = invoices.groupby('Item ID')['price invoice'].agg('mean').to_frame()
 
